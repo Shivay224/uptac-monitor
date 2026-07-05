@@ -1,7 +1,7 @@
 import requests
 
 TELEGRAM_TOKEN = "8942906921:AAGkNJCxt2SfzBBp-ppaYAPHLAorojNypFo"
-CHAT_ID = "8699041888"
+CHAT_ID = "8699041887"
 
 def send(msg):
     r = requests.post(
