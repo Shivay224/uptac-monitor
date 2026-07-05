@@ -25,19 +25,18 @@ def send(msg):
         print("Telegram Error:", e)
 
 
-# ---------- Scraper ----------
+# ---------- Scraper (more stable) ----------
 def get_data():
     try:
-        r = requests.get(URL, timeout=10)
+        r = requests.get(URL, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(r.text, "html.parser")
 
-        table = soup.find("table")
-        if not table:
-            return []
+        rows = soup.select("table tr")
 
         notices = []
-        for row in table.find_all("tr"):
+        for row in rows:
             text = row.get_text(" ", strip=True)
+
             if text and len(text) > 25 and "Published" not in text:
                 notices.append(text)
 
@@ -67,8 +66,8 @@ def save_new(data):
 
 
 # ---------- Hash ----------
-def make_hash_list(data):
-    return [hashlib.md5(x.encode()).hexdigest() for x in data]
+def make_hash(data):
+    return set(hashlib.md5(x.encode()).hexdigest() for x in data)
 
 
 # ---------- MAIN ----------
@@ -76,8 +75,8 @@ def run():
     new_data = get_data()
     old_data = load_old()
 
-    new_hash = make_hash_list(new_data)
-    old_hash = make_hash_list(old_data)
+    new_hash = make_hash(new_data)
+    old_hash = make_hash(old_data)
 
     # First run
     if not old_data:
@@ -85,13 +84,9 @@ def run():
         save_new(new_data)
         return
 
-    # Detect changes
-    changes = []
-    for i, h in enumerate(new_hash):
-        if h not in old_hash:
-            changes.append(new_data[i])
+    # Detect changes safely
+    changes = [x for x in new_data if hashlib.md5(x.encode()).hexdigest() not in old_hash]
 
-    # Send alerts
     if changes:
         for c in changes:
             send("🔔 NEW UPTAC NOTICE:\n\n" + c)
