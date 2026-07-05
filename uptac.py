@@ -83,10 +83,9 @@ def run():
     old_hash = make_hash_list(old_data)
 
     # First run
-    if not old_data:
-        save_new(new_data)
-        send("🚨 UPTAC Monitor Started Successfully")
-        return
+   if not old:
+    send("🚨 UPTAC Monitor Activated Successfully")
+    save_new(new)
 
     # Find new items
     changes = []
