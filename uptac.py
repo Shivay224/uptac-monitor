@@ -25,7 +25,7 @@ def send(msg):
         print("Telegram Error:", e)
 
 
-# ---------- Get clean notices ----------
+# ---------- Scraper ----------
 def get_data():
     try:
         r = requests.get(URL, timeout=10)
@@ -36,11 +36,8 @@ def get_data():
             return []
 
         notices = []
-
         for row in table.find_all("tr"):
             text = row.get_text(" ", strip=True)
-
-            # filter noise
             if text and len(text) > 25 and "Published" not in text:
                 notices.append(text)
 
@@ -51,7 +48,7 @@ def get_data():
         return []
 
 
-# ---------- Load old state ----------
+# ---------- Load ----------
 def load_old():
     if not os.path.exists(DATA_FILE):
         return []
@@ -63,18 +60,18 @@ def load_old():
         return []
 
 
-# ---------- Save state ----------
+# ---------- Save ----------
 def save_new(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
 
 
-# ---------- Hash for stability ----------
+# ---------- Hash ----------
 def make_hash_list(data):
     return [hashlib.md5(x.encode()).hexdigest() for x in data]
 
 
-# ---------- Main ----------
+# ---------- MAIN ----------
 def run():
     new_data = get_data()
     old_data = load_old()
@@ -83,16 +80,18 @@ def run():
     old_hash = make_hash_list(old_data)
 
     # First run
-   if not old:
-    send("🚨 UPTAC Monitor Activated Successfully")
-    save_new(new)
+    if not old_data:
+        send("🚨 UPTAC Monitor Activated Successfully")
+        save_new(new_data)
+        return
 
-    # Find new items
+    # Detect changes
     changes = []
     for i, h in enumerate(new_hash):
         if h not in old_hash:
             changes.append(new_data[i])
 
+    # Send alerts
     if changes:
         for c in changes:
             send("🔔 NEW UPTAC NOTICE:\n\n" + c)
