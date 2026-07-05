@@ -1,118 +1,75 @@
 import requests
 from bs4 import BeautifulSoup
+import time
 import os
-import json
-import hashlib
 
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
-DATA_FILE = "last.json"
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
+seen = set()
 
-# ---------- Telegram ----------
+
+# ---------- send telegram ----------
 def send(msg):
-    if not TELEGRAM_TOKEN or not CHAT_ID:
-        print("Missing Telegram credentials")
-        return
-
     try:
         requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
             data={"chat_id": CHAT_ID, "text": msg},
             timeout=10
         )
-    except Exception as e:
-        print("Telegram error:", e)
+    except:
+        pass
 
 
-# ---------- Scrape ----------
-def get_data():
+# ---------- fetch notices ----------
+def fetch():
     try:
-        r = requests.get(
-            URL,
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
-        r.raise_for_status()
-
+        r = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
 
         table = soup.find("table")
         if not table:
             return []
 
-        notices = []
+        data = []
 
-        for row in table.find_all("tr"):
+        for row in table.find_all("tr")[1:]:
             cols = row.find_all("td")
-            if not cols:
+            if len(cols) < 3:
                 continue
 
-            text = " | ".join(c.get_text(strip=True) for c in cols)
+            title = cols[0].get_text(strip=True)
+            published = cols[1].get_text(strip=True)
 
-            if len(text) > 10:
-                notices.append(text)
+            link_tag = cols[2].find("a")
+            link = link_tag["href"] if link_tag else None
 
-        return notices
+            if title and link:
+                data.append((title, published, link))
 
-    except Exception as e:
-        print("Scraping error:", e)
-        return []
+        return data
 
-
-# ---------- File handling ----------
-def load_old():
-    if not os.path.exists(DATA_FILE):
-        return []
-    try:
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
     except:
         return []
 
 
-def save_new(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
+# ---------- main loop ----------
+while True:
+    notices = fetch()
 
+    for title, published, link in notices:
+        if link not in seen:
+            seen.add(link)
 
-# ---------- Hash ----------
-def make_hash(data):
-    return set(hashlib.sha256(x.encode()).hexdigest() for x in data)
+            msg = (
+                "🚨 NEW UPTAC NOTICE\n\n"
+                f"📌 {title}\n"
+                f"🕒 {published}\n\n"
+                f"🔗 {link}"
+            )
 
+            send(msg)
 
-# ---------- Main ----------
-def run():
-    new_data = get_data()
-    old_data = load_old()
-
-    if not new_data:
-        print("No data found")
-        return
-
-    new_hash = make_hash(new_data)
-    old_hash = make_hash(old_data)
-
-    # first run
-    if not old_data:
-        send("🚨 UPTAC Monitor Activated")
-        save_new(new_data)
-        return
-
-    # detect changes
-    changes = [
-        x for x in new_data
-        if hashlib.sha256(x.encode()).hexdigest() not in old_hash
-    ]
-
-    if changes:
-        for c in changes:
-            send("🔔 NEW UPTAC NOTICE:\n\n" + c)
-
-    save_new(new_data)
-
-
-if __name__ == "__main__":
-    run()
+    time.sleep(20)  # check every 20 seconds (safe + fast)
