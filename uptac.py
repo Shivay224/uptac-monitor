@@ -7,7 +7,7 @@ import hashlib
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
 
 TELEGRAM_TOKEN = "8942906921:AAGkNJCxt2SfzBBp-ppaYAPHLAorojNypFo"
-CHAT_ID = "93372553"
+CHAT_ID = "8699041887"
 
 DATA_FILE = "last.json"
 
