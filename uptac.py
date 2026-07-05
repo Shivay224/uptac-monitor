@@ -1,6 +1,6 @@
 import requests
 
-TELEGRAM_TOKEN = "YOUR_TOKEN"
+TELEGRAM_TOKEN = "8942906921:AAGkNJCxt2SfzBBp-ppaYAPHLAorojNypFo"
 CHAT_ID = "8699041888"
 
 def send(msg):
