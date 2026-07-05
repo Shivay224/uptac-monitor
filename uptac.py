@@ -5,7 +5,7 @@ import os
 
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
 
-TELEGRAM_TOKEN = "8942906921:AAGEuY9nwmCcsHS_i1Fy54GZKY_US5gEbYQ"
+TELEGRAM_TOKEN = "8859699461:AAHQ_bOI5by8PkuMOO37Lacy2u3HSU0dLss"
 CHAT_ID = "93372553"
 
 DATA_FILE = "last.json"
