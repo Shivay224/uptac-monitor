@@ -2,24 +2,30 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import hashlib
 
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
 
-TELEGRAM_TOKEN = "8859699461:AAHQ_bOI5by8PkuMOO37Lacy2u3HSU0dLss"
+TELEGRAM_TOKEN = "8942906921:AAGkNJCxt2SfzBBp-ppaYAPHLAorojNypFo"
 CHAT_ID = "93372553"
 
 DATA_FILE = "last.json"
 
+
+# ---------- Telegram ----------
 def send(msg):
     try:
-        requests.post(
+        r = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
             data={"chat_id": CHAT_ID, "text": msg},
             timeout=10
         )
-    except:
-        pass
+        print("Telegram:", r.status_code, r.text)
+    except Exception as e:
+        print("Telegram Error:", e)
 
+
+# ---------- Get clean notices ----------
 def get_data():
     try:
         r = requests.get(URL, timeout=10)
@@ -34,45 +40,65 @@ def get_data():
         for row in table.find_all("tr"):
             text = row.get_text(" ", strip=True)
 
-            if text and len(text) > 30 and "Published" not in text:
+            # filter noise
+            if text and len(text) > 25 and "Published" not in text:
                 notices.append(text)
 
         return notices
 
-    except:
+    except Exception as e:
+        print("Scraper Error:", e)
         return []
 
+
+# ---------- Load old state ----------
 def load_old():
+    if not os.path.exists(DATA_FILE):
+        return []
+
     try:
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "r") as f:
-                return json.load(f)
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
     except:
         return []
-    return []
 
+
+# ---------- Save state ----------
 def save_new(data):
-    try:
-        with open(DATA_FILE, "w") as f:
-            json.dump(data, f)
-    except:
-        pass
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
 
+
+# ---------- Hash for stability ----------
+def make_hash_list(data):
+    return [hashlib.md5(x.encode()).hexdigest() for x in data]
+
+
+# ---------- Main ----------
 def run():
-    new = get_data()
-    old = load_old()
+    new_data = get_data()
+    old_data = load_old()
 
-    if not old:
-        save_new(new)
-        send("UPTAC Monitor Started ✅")
+    new_hash = make_hash_list(new_data)
+    old_hash = make_hash_list(old_data)
+
+    # First run
+    if not old_data:
+        save_new(new_data)
+        send("🚨 UPTAC Monitor Started Successfully")
         return
 
-    changes = [x for x in new if x not in old]
+    # Find new items
+    changes = []
+    for i, h in enumerate(new_hash):
+        if h not in old_hash:
+            changes.append(new_data[i])
 
     if changes:
         for c in changes:
             send("🔔 NEW UPTAC NOTICE:\n\n" + c)
 
-    save_new(new)
+    save_new(new_data)
+
 
 run()
