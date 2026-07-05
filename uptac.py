@@ -7,8 +7,8 @@ import hashlib
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
 DATA_FILE = "last.json"
 
-TELEGRAM_TOKEN = os.getenv("8942906921:AAGkNJCxt2SfzBBp-ppaYAPHLAorojNypFo")
-CHAT_ID = os.getenv("8699041887")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 
 # ---------- Telegram ----------
