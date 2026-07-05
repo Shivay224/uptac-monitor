@@ -1,4 +1,4 @@
-name: UPTAC Playwright Monitor
+name: UPTAC Monitor
 
 on:
   schedule:
