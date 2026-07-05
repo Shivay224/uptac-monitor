@@ -1,7 +1,7 @@
-import requests
-from bs4 import BeautifulSoup
 import os
 import json
+import requests
+from playwright.sync_api import sync_playwright
 
 URL = "https://uptac.samarth.edu.in/index.php/notifications/index"
 
@@ -19,52 +19,52 @@ def send(msg):
             data={"chat_id": CHAT_ID, "text": msg},
             timeout=10
         )
-    except Exception as e:
-        print("Telegram error:", e)
+    except:
+        pass
 
 
-# ---------- Load state ----------
+# ---------- load/save ----------
 def load():
     try:
-        with open(FILE, "r") as f:
-            return json.load(f)
+        return json.load(open(FILE))
     except:
         return []
 
 
-# ---------- Save state ----------
 def save(data):
-    with open(FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    json.dump(data, open(FILE, "w"), indent=2)
 
 
-# ---------- Scraper (ROBUST) ----------
+# ---------- PLAYWRIGHT SCRAPER ----------
 def fetch():
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+    notices = []
 
-        r = requests.get(URL, headers=headers, timeout=15)
-        soup = BeautifulSoup(r.text, "html.parser")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
 
-        notices = []
+        page.goto(URL, timeout=60000)
+        page.wait_for_timeout(5000)
 
-        rows = soup.find_all("tr")
+        rows = page.locator("tr")
+        count = rows.count()
 
-        for row in rows:
-            cols = row.find_all("td")
+        for i in range(count):
+            row = rows.nth(i)
+            cols = row.locator("td")
 
-            if len(cols) < 3:
+            if cols.count() < 3:
                 continue
 
-            title = cols[0].get_text(" ", strip=True)
-            published = cols[1].get_text(" ", strip=True)
+            title = cols.nth(0).inner_text().strip()
+            published = cols.nth(1).inner_text().strip()
 
-            link_tag = cols[2].find("a")
-            link = link_tag["href"] if link_tag else URL
+            link_el = cols.nth(2).locator("a")
 
-            # filter junk rows
+            link = URL
+            if link_el.count() > 0:
+                link = link_el.get_attribute("href")
+
             if title and len(title) > 5:
                 notices.append({
                     "title": title,
@@ -72,11 +72,9 @@ def fetch():
                     "link": link
                 })
 
-        return notices
+        browser.close()
 
-    except Exception as e:
-        print("Fetch error:", e)
-        return []
+    return notices
 
 
 # ---------- MAIN ----------
@@ -85,9 +83,9 @@ new = fetch()
 
 old_links = {i.get("link") for i in old if i.get("link")}
 
-# ---------- FIRST RUN ----------
+# FIRST RUN
 if not old:
-    send("🚨 UPTAC MONITOR ACTIVATED\n\n📡 Sending current notices snapshot...")
+    send("🚨 UPTAC MONITOR ACTIVATED (Playwright Mode)")
 
     for n in new:
         send(
@@ -100,12 +98,11 @@ if not old:
     save(new)
     exit()
 
-
-# ---------- NORMAL RUN ----------
+# NORMAL RUN
 for n in new:
     if n["link"] not in old_links:
         send(
-            "🚨 NEW NOTICE\n\n"
+            f"🚨 NEW NOTICE\n\n"
             f"📌 {n['title']}\n"
             f"🕒 {n['published']}\n\n"
             f"🔗 {n['link']}"
